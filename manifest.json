@@ -1,0 +1,20 @@
+{
+  "name": "Forex Signals",
+  "short_name": "Signals",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1f2937",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2922/2922506.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2922/2922506.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
