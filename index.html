@@ -1,0 +1,508 @@
+<!doctype html><html lang="az"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e1320"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"><title>SignalPro</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#0e1320;color:#e8ecf4;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:10px 12px 84px;padding-top:max(10px,env(safe-area-inset-top))}
+h1{font-size:22px;margin:0}.top{display:flex;justify-content:space-between;align-items:center}.mt{color:#8b95ab;font-size:12.5px;line-height:1.45}
+.tg{background:#6b7488;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-weight:700;font-size:13px}.tg.on{background:#19c37d}
+.card{background:#171f33;border-radius:16px;padding:14px;margin:12px 0;border:2px solid transparent}.nm{font-size:20px;font-weight:700}.nm .mt{font-weight:400}
+.sg{font-size:31px;font-weight:800;margin:6px 0 2px}.bar{height:14px;background:#0b101c;border-radius:7px;position:relative;margin:9px 0;overflow:hidden}
+.bar i{position:absolute;top:2px;bottom:2px;border-radius:5px}.bar b{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#8b95ab}
+table{width:100%;font-size:14px;border-collapse:collapse}td{padding:3.5px 0}td:last-child{text-align:right;font-weight:600}small{color:#8b95ab;font-weight:400}
+.err{color:#ef4444;font-size:14px;margin-top:8px}.btn{display:block;width:100%;border:0;border-radius:12px;padding:13px;font-size:15px;font-weight:700;color:#fff;background:#2b3a5c;margin:10px 0}.btn.g{background:#19c37d}.btn.b{background:#3b82f6}
+.tab{display:none}nav{position:fixed;left:0;right:0;bottom:0;background:#121a2c;display:flex;padding-bottom:env(safe-area-inset-bottom);border-top:1px solid #222c45}
+nav button{flex:1;background:none;border:0;color:#8b95ab;padding:11px 0 9px;font-size:11px}nav button.on{color:#fff;border-top:2px solid #3b82f6;margin-top:-1px}nav span{display:block;font-size:19px}
+.chips{display:flex;gap:8px;margin:8px 0}.chip{background:#222c45;color:#e8ecf4;border:0;border-radius:18px;padding:8px 14px}.chip.on{background:#3b82f6}
+.gt{margin:8px 0 10px}.gt th{text-align:right;color:#8b95ab;font-weight:500;font-size:12px}.gt th:first-child,.gt td:first-child{text-align:left}.gt td:not(:first-child){text-align:right;font-weight:600}
+select,input[type=number]{width:100%;background:#222c45;color:#e8ecf4;border:0;border-radius:10px;padding:12px;font-size:15px;margin:5px 0 10px}
+label{display:block;font-size:13px;color:#8b95ab}label.ck{color:#e8ecf4;font-size:15px;padding:7px 0}label.ck input{width:20px;height:20px;vertical-align:middle;margin-right:8px}
+.ir,.hr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #1d2740;font-size:13.5px}.hr{padding:10px 0}
+#btout{background:#171f33;border-radius:12px;padding:12px;font:12px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;min-height:160px;max-height:55vh;overflow:auto;margin-top:8px}
+</style></head><body>
+<div class="top"><div><h1>SignalPro</h1><div class="mt">1H • <span id="cnt">1000</span> indikator</div></div><button id="onoff" class="tg on">● AÇIQ</button></div>
+<div class="mt" id="clock" style="margin-top:6px"></div><div class="mt" id="status"></div>
+<div id="t_sig" class="tab"><div id="cards"></div><button id="now" class="btn b">İndi analiz et</button>
+<div class="mt">Maliyyə məsləhəti deyil. 100% dəqiq proqnoz yoxdur; bütün risk istifadəçiyə aiddir. Proqram açıq olanda hər saat başında özü yenilənir.</div></div>
+<div id="t_ind" class="tab"><div id="ind"></div></div>
+<div id="t_his" class="tab"><div id="hist"></div></div>
+<div id="t_bt" class="tab"><button id="b1" class="btn g">Seçilmiş 2 cütlüyü yoxla</button><button id="b2" class="btn" style="background:#7c3aed">Namizədləri sırala (ən yaxşı cütlük)</button>
+<div class="mt">Backtest strategiyanı keçmiş datada yoxlayır (spred daxil deyil). expR &gt; 0 olmalıdır.</div><div id="btout"></div></div>
+<div id="t_set" class="tab"><div id="set"></div></div>
+<nav><button data-t="sig" class="on"><span>📈</span>Siqnal</button><button data-t="ind"><span>🧮</span>İndikator</button><button data-t="his"><span>🕘</span>Tarixçə</button><button data-t="bt"><span>🧪</span>Backtest</button><button data-t="set"><span>⚙️</span>Ayar</button></nav>
+<script>
+(function (root) {
+'use strict';
+const mk = (n, v) => { const a = new Float64Array(n); a.fill(v === undefined ? NaN : v); return a; };
+const S = x => (x > 0 ? 1 : x < 0 ? -1 : 0);
+const clip = (x, a, b) => (x < (a === undefined ? -1 : a) ? (a === undefined ? -1 : a) : x > (b === undefined ? 1 : b) ? (b === undefined ? 1 : b) : x);
+
+// ------------------------------------------------------------ baza funksiyalar
+function lead(a) { let i = 0; while (i < a.length && a[i] !== a[i]) i++; return i; }
+function ema(a, n) { const N = a.length, o = mk(N), s = lead(a); if (s >= N) return o; const k = 2 / (n + 1); o[s] = a[s];
+  for (let i = s + 1; i < N; i++) { const x = a[i]; o[i] = x === x ? o[i - 1] + k * (x - o[i - 1]) : o[i - 1]; } return o; }
+function rma(a, n) { const N = a.length, o = mk(N), s = lead(a); if (s >= N) return o; const k = 1 / n; o[s] = a[s];
+  for (let i = s + 1; i < N; i++) { const x = a[i]; o[i] = x === x ? o[i - 1] + k * (x - o[i - 1]) : o[i - 1]; } return o; }
+function sma(a, n) { const N = a.length, o = mk(N); let s = 0, bad = 0;
+  for (let i = 0; i < N; i++) { const x = a[i]; if (x !== x) bad++; else s += x;
+    if (i >= n) { const y = a[i - n]; if (y !== y) bad--; else s -= y; }
+    if (i >= n - 1 && bad === 0) o[i] = s / n; } return o; }
+function wma(a, n) { const N = a.length, o = mk(N), s = lead(a); let tot = 0, num = 0; const den = n * (n + 1) / 2;
+  for (let i = s; i < N; i++) { const j = i - s, x = a[i];
+    if (j < n) { tot += x; num += x * (j + 1); if (j === n - 1) o[i] = num / den; }
+    else { num = num - tot + n * x; tot += x - a[i - n]; o[i] = num / den; } } return o; }
+function hma(a, n) { const h = wma(a, Math.max(1, n >> 1)), w = wma(a, n), d = mk(a.length);
+  for (let i = 0; i < a.length; i++) d[i] = 2 * h[i] - w[i]; return wma(d, Math.max(1, Math.round(Math.sqrt(n)))); }
+function rollMax(a, n) { const N = a.length, o = mk(N), q = new Int32Array(N); let hd = 0, tl = 0;
+  for (let i = 0; i < N; i++) { while (tl > hd && a[q[tl - 1]] <= a[i]) tl--; q[tl++] = i; if (q[hd] <= i - n) hd++; if (i >= n - 1) o[i] = a[q[hd]]; } return o; }
+function rollMin(a, n) { const N = a.length, o = mk(N), q = new Int32Array(N); let hd = 0, tl = 0;
+  for (let i = 0; i < N; i++) { while (tl > hd && a[q[tl - 1]] >= a[i]) tl--; q[tl++] = i; if (q[hd] <= i - n) hd++; if (i >= n - 1) o[i] = a[q[hd]]; } return o; }
+function rollSum(a, n) { const N = a.length, o = mk(N); let s = 0; for (let i = 0; i < N; i++) { s += a[i]; if (i >= n) s -= a[i - n]; if (i >= n - 1) o[i] = s; } return o; }
+function rollStd(a, n) { const N = a.length, o = mk(N); if (!N) return o; const ref = a[0]; let s = 0, s2 = 0;
+  for (let i = 0; i < N; i++) { const x = a[i] - ref; s += x; s2 += x * x; if (i >= n) { const y = a[i - n] - ref; s -= y; s2 -= y * y; }
+    if (i >= n - 1) { const v = (s2 - s * s / n) / (n - 1); o[i] = v > 0 ? Math.sqrt(v) : 0; } } return o; }
+function diffA(a, k) { const N = a.length, o = mk(N); for (let i = k; i < N; i++) o[i] = a[i] - a[i - k]; return o; }
+function osc(r, hi, lo, mid, span) { mid = mid === undefined ? 50 : mid; span = span === undefined ? 25 : span;
+  if (r > hi) return -0.6; if (r < lo) return 0.6; return clip((r - mid) / span) * 0.6; }
+
+// ------------------------------------------------------------ kontekst (memo)
+function Ctx(b) {
+  this.t = b.t; this.o = b.o; this.h = b.h; this.l = b.l; this.c = b.c; this.v = b.v; this.N = b.c.length; this.M = new Map();
+  const N = this.N; this.hour = new Int8Array(N); this.day = new Float64Array(N);
+  for (let i = 0; i < N; i++) { const d = new Date(b.t[i]); this.hour[i] = d.getUTCHours(); this.day[i] = Math.floor(b.t[i] / 864e5); }
+}
+Ctx.prototype.m = function (k, f) { let r = this.M.get(k); if (r === undefined) { r = f(); this.M.set(k, r); } return r; };
+const E = (C, n) => C.m('e' + n, () => ema(C.c, n));
+const SM = (C, n) => C.m('s' + n, () => sma(C.c, n));
+const TR = C => C.m('tr', () => { const N = C.N, o = mk(N); for (let i = 0; i < N; i++) { const hl = C.h[i] - C.l[i];
+  o[i] = i ? Math.max(hl, Math.abs(C.h[i] - C.c[i - 1]), Math.abs(C.l[i] - C.c[i - 1])) : hl; } return o; });
+const ATR = (C, n) => C.m('atr' + (n || 14), () => rma(TR(C), n || 14));
+const RSI = (C, n) => C.m('rsi' + n, () => { const N = C.N, up = mk(N, 0), dn = mk(N, 0), o = mk(N, 50);
+  for (let i = 1; i < N; i++) { const d = C.c[i] - C.c[i - 1]; up[i] = d > 0 ? d : 0; dn[i] = d < 0 ? -d : 0; }
+  const u = rma(up, n), w = rma(dn, n); for (let i = 1; i < N; i++) o[i] = w[i] === 0 ? 100 : 100 - 100 / (1 + u[i] / w[i]); return o; });
+const HL2 = C => C.m('hl2', () => { const o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = (C.h[i] + C.l[i]) / 2; return o; });
+const TP = C => C.m('tp', () => { const o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = (C.h[i] + C.l[i] + C.c[i]) / 3; return o; });
+const HH = (C, n) => C.m('hh' + n, () => rollMax(C.h, n));
+const LL = (C, n) => C.m('ll' + n, () => rollMin(C.l, n));
+const V = (C, fn) => { const N = C.N, o = new Float64Array(N); for (let i = 0; i < N; i++) { const x = fn(i); o[i] = x === x ? x : 0; } return o; };
+const STK = (C, k) => C.m('stk' + k, () => { const hh = HH(C, k), ll = LL(C, k), o = mk(C.N);
+  for (let i = 0; i < C.N; i++) o[i] = 100 * (C.c[i] - ll[i]) / (hh[i] - ll[i] || NaN); return o; });
+const MACDL = (C, f, s) => C.m('ml' + f + '_' + s, () => { const a = E(C, f), b = E(C, s), o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = a[i] - b[i]; return o; });
+const MFM = C => C.m('mfm', () => { const o = mk(C.N); for (let i = 0; i < C.N; i++) { const r = C.h[i] - C.l[i]; o[i] = r > 0 ? ((C.c[i] - C.l[i]) - (C.h[i] - C.c[i])) / r : 0; } return o; });
+const OBV = C => C.m('obv', () => { const o = mk(C.N, 0); for (let i = 1; i < C.N; i++) o[i] = o[i - 1] + S(C.c[i] - C.c[i - 1]) * C.v[i]; return o; });
+const CVD = C => C.m('cvd', () => { const m = MFM(C), o = mk(C.N, 0); for (let i = 0; i < C.N; i++) o[i] = (i ? o[i - 1] : 0) + m[i] * C.v[i]; return o; });
+const PX = C => C.m('px', () => { const N = C.N, pdh = mk(N), pdl = mk(N), pdc = mk(N), dop = mk(N), vw = mk(N), sop = mk(N);
+  let cur = null, prev = null, pv = 0, vv = 0; const sess = {};
+  for (let i = 0; i < N; i++) {
+    if (!cur || cur.d !== C.day[i]) { if (cur) prev = cur; cur = { d: C.day[i], o: C.o[i], h: C.h[i], l: C.l[i], c: C.c[i] }; pv = 0; vv = 0; }
+    cur.h = Math.max(cur.h, C.h[i]); cur.l = Math.min(cur.l, C.l[i]); cur.c = C.c[i];
+    if (prev) { pdh[i] = prev.h; pdl[i] = prev.l; pdc[i] = prev.c; } dop[i] = cur.o;
+    const tp = (C.h[i] + C.l[i] + C.c[i]) / 3, vol = C.v[i] > 0 ? C.v[i] : 1; pv += tp * vol; vv += vol; vw[i] = pv / vv;
+    const hr = C.hour[i], bk = hr < 7 ? 0 : hr < 12 ? 1 : hr < 21 ? 2 : 3, key = C.day[i] * 4 + bk;
+    if (sess[key] === undefined) sess[key] = C.o[i]; sop[i] = sess[key]; }
+  return { pdh, pdl, pdc, dop, vw, sop }; });
+const PIV = (C, k) => C.m('piv' + k, () => { const N = C.N, h = C.h, l = C.l, ph = mk(N), pl = mk(N), sh = mk(N), sl = mk(N), shp = mk(N), slp = mk(N);
+  for (let i = k; i < N - k; i++) { let mx = true, mn = true; for (let j = i - k; j <= i + k; j++) { if (h[j] > h[i]) mx = false; if (l[j] < l[i]) mn = false; }
+    if (mx) ph[i + k] = h[i]; if (mn) pl[i + k] = l[i]; }
+  let a = NaN, b = NaN, pa = NaN, pb = NaN, a2 = NaN, b2 = NaN; const sh2 = mk(N), sl2 = mk(N);
+  for (let i = 0; i < N; i++) { if (ph[i] === ph[i]) { a2 = a; a = ph[i]; pa = i; } if (pl[i] === pl[i]) { b2 = b; b = pl[i]; pb = i; }
+    sh[i] = a; sl[i] = b; shp[i] = pa; slp[i] = pb; sh2[i] = a2; sl2[i] = b2; }
+  return { sh, sl, shp, slp, sh2, sl2 }; });
+const EVT = (C, k) => C.m('evt' + k, () => { const N = C.N, P = PIV(C, k), c = C.c, bosU = new Uint8Array(N), bosD = new Uint8Array(N), chU = new Uint8Array(N), chD = new Uint8Array(N); let st = 0;
+  for (let i = 1; i < N; i++) { const bull = c[i] > P.sh[i - 1] && c[i - 1] <= P.sh[i - 1], bear = c[i] < P.sl[i - 1] && c[i - 1] >= P.sl[i - 1];
+    if (bull) { if (st === 1) bosU[i] = 1; else if (st === -1) chU[i] = 1; st = 1; } else if (bear) { if (st === -1) bosD[i] = 1; else if (st === 1) chD[i] = 1; st = -1; } }
+  return { bosU, bosD, chU, chD }; });
+function act(f, w) { const N = f.length, o = new Uint8Array(N); let last = -1e9; for (let i = 0; i < N; i++) { if (f[i]) last = i; o[i] = i - last < w ? 1 : 0; } return o; }
+const KAMA = (C, n) => C.m('kama' + n, () => { const N = C.N, c = C.c, o = mk(N); o[0] = c[0];
+  for (let i = 1; i < N; i++) { let ch = i >= n ? Math.abs(c[i] - c[i - n]) : 0, vol = 0; for (let j = Math.max(1, i - n + 1); j <= i; j++) vol += Math.abs(c[j] - c[j - 1]);
+    const er = vol ? ch / vol : 0, sc = Math.pow(er * (2 / 3 - 2 / 31) + 2 / 31, 2); o[i] = o[i - 1] + sc * (c[i] - o[i - 1]); } return o; });
+const SUPER = (C, n, m) => C.m('st' + n + '_' + m, () => { const N = C.N, a = ATR(C, n), c = C.c, d = mk(N, 1), fu = mk(N), fl = mk(N);
+  const hl2 = HL2(C); fu[0] = hl2[0] + m * a[0]; fl[0] = hl2[0] - m * a[0];
+  for (let i = 1; i < N; i++) { const ub = hl2[i] + m * a[i], lb = hl2[i] - m * a[i];
+    fu[i] = (ub < fu[i - 1] || c[i - 1] > fu[i - 1]) ? ub : fu[i - 1]; fl[i] = (lb > fl[i - 1] || c[i - 1] < fl[i - 1]) ? lb : fl[i - 1];
+    if (d[i - 1] === 1 && c[i] < fl[i]) d[i] = -1; else if (d[i - 1] === -1 && c[i] > fu[i]) d[i] = 1; else d[i] = d[i - 1]; } return d; });
+const PSAR = (C, a0, am) => C.m('psar' + a0 + '_' + am, () => { const N = C.N, h = C.h, l = C.l, tr = mk(N, 1), sar = mk(N, 0); let ep = h[0], af = a0; sar[0] = l[0];
+  for (let i = 1; i < N; i++) { let s = sar[i - 1] + af * (ep - sar[i - 1]);
+    if (tr[i - 1] === 1) { s = Math.min(s, l[i - 1], i > 1 ? l[i - 2] : l[i - 1]); if (l[i] < s) { tr[i] = -1; s = ep; ep = l[i]; af = a0; } else { tr[i] = 1; if (h[i] > ep) { ep = h[i]; af = Math.min(af + a0, am); } } }
+    else { s = Math.max(s, h[i - 1], i > 1 ? h[i - 2] : h[i - 1]); if (h[i] > s) { tr[i] = 1; s = ep; ep = h[i]; af = a0; } else { tr[i] = -1; if (l[i] < ep) { ep = l[i]; af = Math.min(af + a0, am); } } }
+    sar[i] = s; } return tr; });
+const ADXC = (C, n) => C.m('adx' + n, () => { const N = C.N, p = mk(N, 0), q = mk(N, 0);
+  for (let i = 1; i < N; i++) { const up = C.h[i] - C.h[i - 1], dn = C.l[i - 1] - C.l[i]; p[i] = up > dn && up > 0 ? up : 0; q[i] = dn > up && dn > 0 ? dn : 0; }
+  const a = ATR(C, n), rp = rma(p, n), rq = rma(q, n), pdi = mk(N), mdi = mk(N), dx = mk(N, 0);
+  for (let i = 0; i < N; i++) { pdi[i] = 100 * rp[i] / a[i]; mdi[i] = 100 * rq[i] / a[i]; const s = pdi[i] + mdi[i]; dx[i] = s ? 100 * Math.abs(pdi[i] - mdi[i]) / s : 0; }
+  return { pdi, mdi, adx: rma(dx, n) }; });
+const POC = (C, win) => C.m('poc' + win, () => { const N = C.N, o = mk(N), tp = TP(C), B = 24;
+  for (let i = win; i < N; i++) { let lo = Infinity, hi = -Infinity; for (let j = i - win; j < i; j++) { if (C.l[j] < lo) lo = C.l[j]; if (C.h[j] > hi) hi = C.h[j]; }
+    if (hi <= lo) continue; const bins = new Float64Array(B), w = (hi - lo) / B;
+    for (let j = i - win; j < i; j++) { let b = Math.floor((tp[j] - lo) / w); if (b >= B) b = B - 1; bins[b] += C.v[j] > 0 ? C.v[j] : 1; }
+    let bi = 0; for (let b = 1; b < B; b++) if (bins[b] > bins[bi]) bi = b; o[i] = lo + (bi + 0.5) * w; } return o; });
+
+// ------------------------------------------------------------ indikatorlar
+const R = [];
+function add(name, group, f) { R.push({ name, group, f }); }
+function fam(prefix, group, params, make) { for (const p of params) add(prefix + '(' + (Array.isArray(p) ? p.join(',') : p) + ')', group, make(p)); }
+const cross = (f1, f2, r) => { const o = []; for (const a of f1) for (const m of f2) if (a * m <= 500) o.push([a, a * m]); return o; };
+
+// ===== TREND
+fam('EMA kəsişmə', 'Trend', cross([3,5,8,10,13,15,20,21,25,30,34,40,50,60,75,100], [2,3,4,5]), p => C => { const a = E(C, p[0]), b = E(C, p[1]); return V(C, i => S(a[i] - b[i])); });
+fam('SMA kəsişmə', 'Trend', cross([3,5,8,10,15,20,25,30,40,50,75,100], [2,3,4]), p => C => { const a = SM(C, p[0]), b = SM(C, p[1]); return V(C, i => S(a[i] - b[i])); });
+fam('Qiymət/EMA', 'Trend', [5,6,7,8,9,10,12,13,14,15,17,20,21,25,26,30,34,40,45,50,55,60,75,89,100,120,150,200,250,300,400], n => C => { const e = E(C, n); return V(C, i => S(C.c[i] - e[i])); });
+fam('Qiymət/SMA', 'Trend', [5,7,10,14,20,25,30,40,50,60,75,100,120,150,200,250,300,400,500], n => C => { const e = SM(C, n); return V(C, i => S(C.c[i] - e[i])); });
+fam('EMA meyl', 'Trend', [].concat(...[5,8,10,13,20,30,40,50,75,100,150,200,250,300,400].map(n => [[n, 0.2], [n, 0.5]])), p => C => { const e = E(C, p[0]), k = Math.max(1, Math.round(p[0] * p[1])); return V(C, i => i >= k ? S(e[i] - e[i - k]) : 0); });
+fam('WMA meyl', 'Trend', [5,8,10,14,20,30,40,50,75,100], n => C => { const w = C.m('w' + n, () => wma(C.c, n)); return V(C, i => i >= 3 ? S(w[i] - w[i - 3]) : 0); });
+fam('Hull MA', 'Trend', [9,14,16,21,25,34,50,55,75,100], n => C => { const w = C.m('h' + n, () => hma(C.c, n)); return V(C, i => i ? S(w[i] - w[i - 1]) : 0); });
+fam('KAMA', 'Trend', [5,8,10,14,20,30,40,50], n => C => { const k = KAMA(C, n); return V(C, i => i ? S(k[i] - k[i - 1]) : 0); });
+fam('LinReg meyl', 'Trend', [5,8,10,14,20,25,30,40,50,60,75,100,150,200], n => C => { const P1 = C.m('p1', () => { const o = mk(C.N); let s = 0; for (let i = 0; i < C.N; i++) { s += C.c[i]; o[i] = s; } return o; }), P2 = C.m('p2', () => { const o = mk(C.N); let s = 0; for (let i = 0; i < C.N; i++) { s += i * C.c[i]; o[i] = s; } return o; });
+  return V(C, i => { if (i < n) return 0; const sy = P1[i] - P1[i - n], siy = P2[i] - P2[i - n], si = n * (2 * i - n + 1) / 2; return S(n * siy - si * sy); }); });
+fam('Aroon', 'Trend', [10,14,20,25,30,40,50,60,75,100], n => C => V(C, i => { if (i < n) return 0; let ih = i - n, il = i - n; for (let j = i - n; j <= i; j++) { if (C.h[j] > C.h[ih]) ih = j; if (C.l[j] < C.l[il]) il = j; } return ((ih - (i - n)) - (il - (i - n))) / n; }));
+fam('Supertrend', 'Trend', [].concat(...[7,10,14,20,30].map(n => [1.5,2,2.5,3,4].map(m => [n, m]))), p => C => SUPER(C, p[0], p[1]));
+fam('Parabolic SAR', 'Trend', [[0.01,0.1],[0.02,0.2],[0.03,0.3],[0.015,0.15],[0.025,0.25],[0.04,0.4],[0.02,0.1],[0.01,0.2]], p => C => PSAR(C, p[0], p[1]));
+fam('Ichimoku', 'Trend', [[9,26,52],[7,22,44],[10,30,60],[12,36,72],[5,15,30],[20,60,120]], p => C => { const t = p[0], k = p[1], s = p[2];
+  const ht = HH(C, t), lt = LL(C, t), hk = HH(C, k), lk = LL(C, k), hs = HH(C, s), ls = LL(C, s);
+  return V(C, i => { const ten = (ht[i] + lt[i]) / 2, kij = (hk[i] + lk[i]) / 2; if (i < k) return 0; const j = i - k, a = ((ht[j] + lt[j]) / 2 + (hk[j] + lk[j]) / 2) / 2, b = (hs[j] + ls[j]) / 2, c = C.c[i];
+    const cl = c > Math.max(a, b) ? 1 : c < Math.min(a, b) ? -1 : 0; return (cl + S(ten - kij)) / 2; }); });
+fam('ADX/DMI', 'Trend', [].concat(...[7,10,14,20,28].map(n => [15,20,25].map(t => [n, t]))), p => C => { const A = ADXC(C, p[0]); return V(C, i => A.adx[i] > p[1] ? S(A.pdi[i] - A.mdi[i]) : 0); });
+fam('Vortex', 'Trend', [7,10,14,21,28,40], n => C => { const N = C.N, a = mk(N, 0), b = mk(N, 0);
+  for (let i = 1; i < N; i++) { a[i] = Math.abs(C.h[i] - C.l[i - 1]); b[i] = Math.abs(C.l[i] - C.h[i - 1]); } const sa = rollSum(a, n), sb = rollSum(b, n); return V(C, i => S(sa[i] - sb[i])); });
+fam('EMA Ribbon', 'Trend', [[8,13,21,34,55],[5,10,20,40,80],[10,20,50,100,200],[3,6,12,24,48]], p => C => { const es = p.map(n => E(C, n)); return V(C, i => { let s = 0; for (let j = 0; j < 4; j++) s += S(es[j][i] - es[j + 1][i]); return s / 4; }); });
+fam('Bayesian Trend', 'Trend', [10,20,30,50,75,100,150,200], n => C => { const u = mk(C.N, 0); for (let i = 1; i < C.N; i++) u[i] = C.c[i] > C.c[i - 1] ? 1 : 0; const s = rollSum(u, n); return V(C, i => clip((((s[i] + 1) / (n + 2)) - 0.5) * 10)); });
+fam('Heikin Ashi', 'Trend', [1,2,3,4], k => C => { const N = C.N, hc = mk(N), ho = mk(N), sg = mk(N);
+  for (let i = 0; i < N; i++) { hc[i] = (C.o[i] + C.h[i] + C.l[i] + C.c[i]) / 4; ho[i] = i ? (ho[i - 1] + hc[i - 1]) / 2 : (C.o[i] + C.c[i]) / 2; sg[i] = S(hc[i] - ho[i]); }
+  return V(C, i => { let s = 0, n = 0; for (let j = i; j >= Math.max(0, i - k); j--) { s += sg[j]; n++; } return s / n; }); });
+fam('Qiymət/EMA ± ATR', 'Trend', [10,14,20,21,30,34,40,50,55,60,75,89,100,120,150,200,250,300,350,400], n => C => { const e = E(C, n), a = ATR(C); return V(C, i => { const d = (C.c[i] - e[i]) / a[i]; return d > 0.5 ? 1 : d < -0.5 ? -1 : 0; }); });
+fam('DEMA meyl', 'Trend', [9,14,21,34,50,75], n => C => { const e1 = E(C, n), e2 = ema(e1, n), d = mk(C.N); for (let i = 0; i < C.N; i++) d[i] = 2 * e1[i] - e2[i]; return V(C, i => i ? S(d[i] - d[i - 1]) : 0); });
+fam('TEMA meyl', 'Trend', [9,14,21,34,50,75], n => C => { const e1 = E(C, n), e2 = ema(e1, n), e3 = ema(e2, n), d = mk(C.N); for (let i = 0; i < C.N; i++) d[i] = 3 * e1[i] - 3 * e2[i] + e3[i]; return V(C, i => i ? S(d[i] - d[i - 1]) : 0); });
+fam('ZLEMA meyl', 'Trend', [9,14,21,34,50,75], n => C => { const lag = Math.floor((n - 1) / 2), x = mk(C.N); for (let i = 0; i < C.N; i++) x[i] = 2 * C.c[i] - C.c[Math.max(0, i - lag)]; const z = ema(x, n); return V(C, i => i ? S(z[i] - z[i - 1]) : 0); });
+fam('SMMA meyl', 'Trend', [5,7,10,14,20,30,50,100], n => C => { const z = C.m('rma' + n, () => rma(C.c, n)); return V(C, i => i ? S(z[i] - z[i - 1]) : 0); });
+
+// ===== MOMENTUM
+const RSIN = [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,18,20,21,24,25,28,30,34,40,50,60,70,80,100];
+fam('RSI', 'Momentum', RSIN, n => C => { const r = RSI(C, n), hi = n <= 3 ? 90 : n < 10 ? 85 : 75, lo = 100 - hi; return V(C, i => osc(r[i], hi, lo)); });
+fam('RSI trend', 'Momentum', RSIN, n => C => { const r = RSI(C, n); return V(C, i => clip((r[i] - 50) / 15)); });
+fam('RSI/EMA(9)', 'Momentum', RSIN, n => C => { const r = RSI(C, n), e = ema(r, 9); return V(C, i => S(r[i] - e[i])); });
+fam('Stochastic', 'Momentum', [].concat(...[5,9,14,21,34].map(k => [2,3,5,8].map(d => [k, d]))), p => C => { const K = STK(C, p[0]), D = sma(K, p[1]); return V(C, i => K[i] > 85 ? -0.6 : K[i] < 15 ? 0.6 : S(K[i] - D[i]) * 0.7); });
+fam('Williams %R', 'Momentum', [5,7,9,10,12,14,18,21,25,30,40,50,60,75], n => C => { const hh = HH(C, n), ll = LL(C, n); return V(C, i => { const w = -100 * (hh[i] - C.c[i]) / (hh[i] - ll[i] || NaN); return w > -10 ? -0.6 : w < -90 ? 0.6 : (w + 50) / 50 * 0.5; }); });
+const CCIN = [6,8,10,14,20,25,30,40,50,60,75,100];
+const CCI = (C, n) => C.m('cci' + n, () => { const tp = TP(C), m = sma(tp, n), s = rollStd(tp, n), o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = (tp[i] - m[i]) / (0.012 * s[i] || NaN); return o; });
+fam('CCI', 'Momentum', CCIN, n => C => { const q = CCI(C, n); return V(C, i => q[i] > 220 ? -0.5 : q[i] < -220 ? 0.5 : clip(q[i] / 100)); });
+fam('CCI trend', 'Momentum', CCIN, n => C => { const q = CCI(C, n); return V(C, i => S(q[i])); });
+const ROCN = [1,2,3,4,5,6,8,10,12,15,18,20,24,30,36,40,48,50,60,72,96,120];
+fam('ROC', 'Momentum', ROCN, n => C => V(C, i => i >= n ? S(C.c[i] / C.c[i - n] - 1) : 0));
+fam('ROC yumşaldılmış', 'Momentum', ROCN, n => C => { const e = ema(diffA(C.c, n), 3); return V(C, i => S(e[i])); });
+fam('Momentum', 'Momentum', [3,5,7,9,14,21,28,34,45,55,89,100], n => C => { const e = ema(diffA(C.c, n), 3); return V(C, i => S(e[i])); });
+const MACDP = [].concat(...[[5,13],[8,17],[12,26],[19,39],[6,19],[10,22]].map(a => [3,5,9,14].map(g => [a[0], a[1], g])));
+fam('MACD', 'Momentum', MACDP, p => C => { const m = MACDL(C, p[0], p[1]), s = ema(m, p[2]); return V(C, i => S(m[i] - s[i])); });
+fam('MACD sıfır xətti', 'Momentum', MACDP, p => C => { const m = MACDL(C, p[0], p[1]); return V(C, i => S(m[i])); });
+fam('MACD təcil', 'Momentum', [[5,13,3],[8,17,5],[12,26,9],[19,39,9],[6,19,5],[10,22,9],[12,26,5],[8,21,9]], p => C => { const m = MACDL(C, p[0], p[1]), s = ema(m, p[2]); return V(C, i => i ? S((m[i] - s[i]) - (m[i - 1] - s[i - 1])) : 0); });
+fam('PPO', 'Momentum', [[5,13],[8,21],[12,26],[15,35],[20,50],[25,60],[30,75],[50,100]], p => C => { const a = E(C, p[0]), b = E(C, p[1]), q = mk(C.N); for (let i = 0; i < C.N; i++) q[i] = (a[i] - b[i]) / b[i]; const s = ema(q, 9); return V(C, i => S(q[i] - s[i])); });
+fam('Awesome Osc', 'Momentum', [[3,10],[5,15],[5,34],[8,21],[10,30],[13,55],[20,50],[21,89]], p => C => { const m = HL2(C), a = sma(m, p[0]), b = sma(m, p[1]); return V(C, i => 0.5 * S(a[i] - b[i]) + (i ? 0.5 * S((a[i] - b[i]) - (a[i - 1] - b[i - 1])) : 0)); });
+fam('TRIX', 'Momentum', [5,7,9,12,15,21,30,40,50,60], n => C => { const t = ema(ema(E(C, n), n), n); return V(C, i => i ? S(t[i] / t[i - 1] - 1) : 0); });
+fam('Stoch RSI', 'Momentum', [5,7,9,14,21,30], n => C => { const r = RSI(C, n), mx = rollMax(r, n), mn = rollMin(r, n), s = mk(C.N); for (let i = 0; i < C.N; i++) s[i] = 100 * (r[i] - mn[i]) / (mx[i] - mn[i] || NaN); const k = sma(s, 3), d = sma(k, 3);
+  return V(C, i => k[i] > 85 ? -0.6 : k[i] < 15 ? 0.6 : S(k[i] - d[i]) * 0.7); });
+fam('Vol-düzəlişli momentum', 'Momentum', [3,5,8,10,14,20,30,40,50,60], n => C => { const a = ATR(C); return V(C, i => i >= n ? clip((C.c[i] - C.c[i - n]) / (a[i] * Math.sqrt(n))) : 0); });
+fam('CMO', 'Momentum', [5,9,14,20,30,50], n => C => { const u = mk(C.N, 0), d = mk(C.N, 0); for (let i = 1; i < C.N; i++) { const x = C.c[i] - C.c[i - 1]; u[i] = x > 0 ? x : 0; d[i] = x < 0 ? -x : 0; } const su = rollSum(u, n), sd = rollSum(d, n); return V(C, i => clip(100 * (su[i] - sd[i]) / ((su[i] + sd[i]) || NaN) / 60)); });
+fam('Ultimate Osc', 'Momentum', [[7,14,28],[5,10,20],[10,20,40],[6,12,24]], p => C => { const bp = mk(C.N, 0), tr = mk(C.N, 0); for (let i = 1; i < C.N; i++) { const lo = Math.min(C.l[i], C.c[i - 1]), hi = Math.max(C.h[i], C.c[i - 1]); bp[i] = C.c[i] - lo; tr[i] = hi - lo; }
+  const a = p.map(n => { const b = rollSum(bp, n), t = rollSum(tr, n), o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = b[i] / (t[i] || NaN); return o; });
+  return V(C, i => { const u = 100 * (4 * a[0][i] + 2 * a[1][i] + a[2][i]) / 7; return u > 70 ? -0.5 : u < 30 ? 0.5 : S(u - 50) * 0.5; }); });
+fam('TSI', 'Momentum', [[25,13],[13,7],[40,20],[20,10]], p => C => { const d = diffA(C.c, 1), ad = d.map(Math.abs); d[0] = 0; ad[0] = 0; const t = mk(C.N), a = ema(ema(d, p[0]), p[1]), b = ema(ema(ad, p[0]), p[1]); for (let i = 0; i < C.N; i++) t[i] = 100 * a[i] / (b[i] || NaN); const s = ema(t, 7); return V(C, i => S(t[i] - s[i])); });
+fam('Coppock', 'Momentum', [[14,11,10],[10,8,8],[20,15,12],[14,11,5]], p => C => { const x = mk(C.N); for (let i = 0; i < C.N; i++) x[i] = i >= Math.max(p[0], p[1]) ? (C.c[i] / C.c[i - p[0]] - 1) * 100 + (C.c[i] / C.c[i - p[1]] - 1) * 100 : NaN; const w = wma(x, p[2]); return V(C, i => i ? 0.6 * S(w[i] - w[i - 1]) + 0.4 * S(w[i]) : 0); });
+fam('KST', 'Momentum', [1, 2], v => C => { const r = (n, s) => sma(C.c.map((x, i) => i >= n ? (x / C.c[i - n] - 1) * 100 : NaN), s), a = r(10 * v, 10), b = r(15 * v, 10), c = r(20 * v, 10), d = r(30 * v, 15), k = mk(C.N); for (let i = 0; i < C.N; i++) k[i] = a[i] + 2 * b[i] + 3 * c[i] + 4 * d[i]; const s = sma(k, 9); return V(C, i => S(k[i] - s[i])); });
+fam('Fisher', 'Momentum', [5,9,10,14,21], n => C => { const m = HL2(C), mx = rollMax(m, n), mn = rollMin(m, n), f = mk(C.N, 0); let v = 0;
+  for (let i = 1; i < C.N; i++) { const x = mx[i] === mx[i] && mx[i] > mn[i] ? 0.66 * ((m[i] - mn[i]) / (mx[i] - mn[i]) - 0.5) : 0; v = clip(x + 0.67 * v, -0.999, 0.999); f[i] = 0.5 * Math.log((1 + v) / (1 - v)) + 0.5 * f[i - 1]; } return V(C, i => i ? S(f[i] - f[i - 1]) : 0); });
+fam('Relative Vigor', 'Momentum', [5,10,14,20], n => C => { const sm4 = a => { const o = mk(C.N); for (let i = 3; i < C.N; i++) o[i] = (a[i] + 2 * a[i - 1] + 2 * a[i - 2] + a[i - 3]) / 6; return o; };
+  const co = mk(C.N), hl = mk(C.N); for (let i = 0; i < C.N; i++) { co[i] = C.c[i] - C.o[i]; hl[i] = C.h[i] - C.l[i]; } const a = sma(sm4(co), n), b = sma(sm4(hl), n), rv = mk(C.N); for (let i = 0; i < C.N; i++) rv[i] = a[i] / (b[i] || NaN); const sg = sm4(rv); return V(C, i => S(rv[i] - sg[i])); });
+fam('Elder Ray', 'Momentum', [8,13,21,34], n => C => { const e = E(C, n); return V(C, i => S((C.h[i] - e[i]) + (C.l[i] - e[i]))); });
+
+// ===== BANDS
+fam('Bollinger %B', 'Bands', [].concat(...[10,14,20,30,40,50].map(n => [1.5,2,2.5,3].map(k => [n, k]))), p => C => { const m = SM(C, p[0]), s = C.m('sd' + p[0], () => rollStd(C.c, p[0]));
+  return V(C, i => { const pb = (C.c[i] - (m[i] - p[1] * s[i])) / (2 * p[1] * s[i] || NaN); return pb > 1 ? -0.7 : pb < 0 ? 0.7 : (pb - 0.5) * 0.6; }); });
+fam('Bollinger trend', 'Bands', [].concat(...[10,14,20,30,40,50].map(n => [1.5,2,2.5,3].map(k => [n, k]))), p => C => { const m = SM(C, p[0]), s = C.m('sd' + p[0], () => rollStd(C.c, p[0]));
+  return V(C, i => clip(((C.c[i] - (m[i] - p[1] * s[i])) / (2 * p[1] * s[i] || NaN) - 0.5) * 2)); });
+fam('Bollinger Squeeze', 'Bands', [14, 20, 30], n => C => { const m = SM(C, n), s = rollStd(C.c, n), bw = mk(C.N); for (let i = 0; i < C.N; i++) bw[i] = 4 * s[i] / m[i];
+  const sq = new Uint8Array(C.N); for (let i = 100; i < C.N; i++) { const w = Array.from(bw.slice(i - 99, i + 1)).sort((a, b) => a - b); sq[i] = bw[i] <= w[19] ? 1 : 0; } const ac = act(sq, 6);
+  return V(C, i => ac[i] ? (C.c[i] > m[i] + 2 * s[i] ? 1 : C.c[i] < m[i] - 2 * s[i] ? -1 : 0) : 0); });
+fam('Keltner', 'Bands', [].concat(...[10,20,30,50].map(n => [1,1.5,2,3].map(m => [n, m]))), p => C => { const e = E(C, p[0]), a = ATR(C, p[0]); return V(C, i => C.c[i] > e[i] + p[1] * a[i] ? 1 : C.c[i] < e[i] - p[1] * a[i] ? -1 : S(C.c[i] - e[i]) * 0.4); });
+fam('Donchian', 'Bands', [5,8,10,13,15,20,25,30,40,50,55,75,100,120], n => C => { const hh = HH(C, n), ll = LL(C, n); return V(C, i => i < 1 ? 0 : C.c[i] > hh[i - 1] ? 1 : C.c[i] < ll[i - 1] ? -1 : 0.5 * S(C.c[i] - (hh[i] + ll[i]) / 2)); });
+fam('Z-Score', 'Bands', [10,14,20,30,40,50,60,75,100,120,150,200], n => C => { const m = SM(C, n), s = C.m('sd' + n, () => rollStd(C.c, n)); return V(C, i => { const z = (C.c[i] - m[i]) / (s[i] || NaN); return Math.abs(z) > 1.5 ? -clip(z / 2.5) : 0; }); });
+fam('ATR genişlənmə', 'Bands', [5,7,10,14,20,30,40,50], n => C => { const a = ATR(C), m = sma(a, n * 3); return V(C, i => a[i] > m[i] * 1.1 && i >= 5 ? S(C.c[i] - C.c[i - Math.max(2, n >> 1)]) : 0); });
+fam('Diapazon mövqeyi', 'Bands', [10,14,20,30,40,50,60,75,100,150,200,250], n => C => { const hh = HH(C, n), ll = LL(C, n); return V(C, i => clip(((C.c[i] - ll[i]) / (hh[i] - ll[i] || NaN) - 0.5) * 1.4)); });
+fam('Chandelier Exit', 'Bands', [[22,3],[14,2.5],[10,2],[30,3.5],[22,2.5],[50,4]], p => C => { const a = ATR(C, p[0]), hh = HH(C, p[0]), ll = LL(C, p[0]), d = mk(C.N, 0); let cur = 1;
+  for (let i = 1; i < C.N; i++) { const ls = hh[i - 1] - p[1] * a[i - 1], ss = ll[i - 1] + p[1] * a[i - 1]; if (C.c[i] > ss) cur = 1; else if (C.c[i] < ls) cur = -1; d[i] = cur; } return d; });
+add('VWAP', 'Bands', C => { const x = PX(C).vw; return V(C, i => S(C.c[i] - x[i]) * 0.6); });
+add('Gündəlik açılış meyli', 'Bands', C => { const x = PX(C).dop; return V(C, i => S(C.c[i] - x[i]) * 0.6); });
+fam('Range Efficiency', 'Bands', [5,8,10,14,20,30,40,50], n => C => { const d = mk(C.N, 0); for (let i = 1; i < C.N; i++) d[i] = Math.abs(C.c[i] - C.c[i - 1]); const s = rollSum(d, n); return V(C, i => i >= n ? S(C.c[i] - C.c[i - n]) * Math.abs(C.c[i] - C.c[i - n]) / (s[i] || NaN) : 0); });
+
+// ===== VOLUME
+const MFIN = [5,7,9,10,12,14,18,20,25,30];
+const MFI = (C, n) => C.m('mfi' + n, () => { const tp = TP(C), p = mk(C.N, 0), q = mk(C.N, 0); for (let i = 1; i < C.N; i++) { const r = tp[i] * (C.v[i] > 0 ? C.v[i] : 1); if (tp[i] > tp[i - 1]) p[i] = r; else if (tp[i] < tp[i - 1]) q[i] = r; }
+  const a = rollSum(p, n), b = rollSum(q, n), o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = b[i] === 0 ? 100 : 100 - 100 / (1 + a[i] / b[i]); return o; });
+fam('MFI', 'Volume', MFIN, n => C => { const m = MFI(C, n); return V(C, i => m[i] > 80 ? -0.6 : m[i] < 20 ? 0.6 : (m[i] - 50) / 50 * 0.5); });
+fam('MFI trend', 'Volume', MFIN, n => C => { const m = MFI(C, n); return V(C, i => S(m[i] - 50)); });
+const CMFN = [5,8,10,13,20,21,30,40,50,60];
+const CMF = (C, n) => C.m('cmf' + n, () => { const m = MFM(C), x = mk(C.N), v = mk(C.N); for (let i = 0; i < C.N; i++) { x[i] = m[i] * C.v[i]; v[i] = C.v[i]; } const a = rollSum(x, n), b = rollSum(v, n), o = mk(C.N); for (let i = 0; i < C.N; i++) o[i] = a[i] / (b[i] || NaN); return o; });
+fam('CMF', 'Volume', CMFN, n => C => { const m = CMF(C, n); return V(C, i => clip(m[i] * 4)); });
+fam('CMF trend', 'Volume', CMFN, n => C => { const m = CMF(C, n); return V(C, i => S(m[i])); });
+const OBVN = [5,8,10,13,20,30,50,75,100,150];
+fam('OBV/EMA', 'Volume', OBVN, n => C => { const o = OBV(C), e = ema(o, n); return V(C, i => S(o[i] - e[i])); });
+fam('OBV meyl', 'Volume', OBVN, n => C => { const o = OBV(C); return V(C, i => i >= n ? S(o[i] - o[i - n]) : 0); });
+fam('Force Index', 'Volume', [2,5,8,13,21,34,55,89], n => C => { const f = mk(C.N, 0); for (let i = 1; i < C.N; i++) f[i] = (C.c[i] - C.c[i - 1]) * C.v[i]; const e = ema(f, n); return V(C, i => S(e[i])); });
+fam('Negative Volume Index', 'Volume', [20, 50, 100, 150], n => C => { const x = mk(C.N, 1); for (let i = 1; i < C.N; i++) x[i] = x[i - 1] * (C.v[i] < C.v[i - 1] ? C.c[i] / C.c[i - 1] : 1); const e = ema(x, n); return V(C, i => S(x[i] - e[i])); });
+fam('Həcm partlayışı', 'Volume', [[10,1.5],[20,1.8],[20,2.5],[50,2]], p => C => { const m = sma(C.v, p[0]); return V(C, i => C.v[i] > p[1] * m[i] ? S(C.c[i] - C.o[i]) : 0); });
+fam('CVD divergensiya', 'Volume', [5,8,10,14,20,30], n => C => { const d = CVD(C); return V(C, i => { if (i < n) return 0; const pc = S(C.c[i] - C.c[i - n]), dc = S(d[i] - d[i - n]); return pc * dc < 0 ? -pc * 0.8 : 0.4 * pc; }); });
+
+// ===== PRICE ACTION / SMC
+add('Şam formaları', 'PriceAction', C => { const N = C.N, raw = mk(N, 0), o = C.o, h = C.h, l = C.l, c = C.c, m10 = SM(C, 10);
+  for (let i = 2; i < N; i++) { const body = Math.abs(c[i] - o[i]), uw = h[i] - Math.max(o[i], c[i]), lw = Math.min(o[i], c[i]) - l[i], b2 = Math.abs(c[i - 2] - o[i - 2]), b1 = Math.abs(c[i - 1] - o[i - 1]); let v = 0;
+    if (c[i] > o[i] && c[i - 1] < o[i - 1] && c[i] >= o[i - 1] && o[i] <= c[i - 1]) v += 1; if (c[i] < o[i] && c[i - 1] > o[i - 1] && c[i] <= o[i - 1] && o[i] >= c[i - 1]) v -= 1;
+    if (lw > 2 * body && uw <= body && c[i] < m10[i]) v += 0.6; if (uw > 2 * body && lw <= body && c[i] > m10[i]) v -= 0.6;
+    if (c[i - 2] < o[i - 2] && b1 < 0.5 * b2 && c[i] > o[i] && c[i] > (o[i - 2] + c[i - 2]) / 2) v += 1; if (c[i - 2] > o[i - 2] && b1 < 0.5 * b2 && c[i] < o[i] && c[i] < (o[i - 2] + c[i - 2]) / 2) v -= 1; raw[i] = v; }
+  const out = mk(N, 0); let last = 0, li = -9; for (let i = 0; i < N; i++) { if (raw[i] !== 0) { last = raw[i]; li = i; out[i] = raw[i]; } else if (i - li <= 2) out[i] = last; } return out; });
+fam('Struktur qırılması (BOS)', 'PriceAction', [].concat(...[2,3,4,5,6,8].map(k => [3, 6].map(w => [k, w]))), p => C => { const e = EVT(C, p[0]), u = act(e.bosU, p[1]), d = act(e.bosD, p[1]); return V(C, i => u[i] - d[i]); });
+fam('CHoCH', 'PriceAction', [2,3,4,5,6,8], k => C => { const e = EVT(C, k), u = act(e.chU, 6), d = act(e.chD, 6); return V(C, i => u[i] - d[i]); });
+fam('Likvidlik sweep', 'PriceAction', [].concat(...[2,3,4,5,6,8].map(k => [2, 3, 5].map(w => [k, w]))), p => C => { const P = PIV(C, p[0]), N = C.N, b = new Uint8Array(N), s = new Uint8Array(N);
+  for (let i = 1; i < N; i++) { if (C.l[i] < P.sl[i - 1] && C.c[i] > P.sl[i - 1]) b[i] = 1; if (C.h[i] > P.sh[i - 1] && C.c[i] < P.sh[i - 1]) s[i] = 1; } const a = act(b, p[1]), d = act(s, p[1]); return V(C, i => a[i] - d[i]); });
+fam('FVG', 'PriceAction', [3,4,6,8,10,15], w => C => { const N = C.N, b = new Uint8Array(N), s = new Uint8Array(N); for (let i = 2; i < N; i++) { if (C.l[i] > C.h[i - 2]) b[i] = 1; if (C.h[i] < C.l[i - 2]) s[i] = 1; } const a = act(b, w), d = act(s, w); return V(C, i => a[i] - d[i]); });
+fam('Order Block', 'PriceAction', [0.8, 1, 1.2, 1.5, 2], m => C => { const a = ATR(C), N = C.N; let bh = NaN, bl = NaN, sh = NaN, sl = NaN; const out = mk(N, 0);
+  for (let i = 3; i < N; i++) { if (C.c[i] - C.o[i] > m * a[i] && C.c[i - 1] < C.o[i - 1]) { bh = C.h[i - 1]; bl = C.l[i - 1]; } if (C.o[i] - C.c[i] > m * a[i] && C.c[i - 1] > C.o[i - 1]) { sh = C.h[i - 1]; sl = C.l[i - 1]; }
+    const mnl = Math.min(C.l[i], C.l[i - 1], C.l[i - 2]), mxh = Math.max(C.h[i], C.h[i - 1], C.h[i - 2]); const bu = mnl <= bh && C.c[i] > bh && C.c[i] > bl, be = mxh >= sl && C.c[i] < sl && C.c[i] < sh; out[i] = (bu ? 1 : 0) - (be ? 1 : 0); } return out; });
+fam('Fibonacci geri çəkilmə', 'PriceAction', [2,3,4,5,6], k => C => { const P = PIV(C, k); return V(C, i => { const rng = P.sh[i] - P.sl[i], lh = P.shp[i] > P.slp[i], rd = (P.sh[i] - C.c[i]) / rng, ru = (C.c[i] - P.sl[i]) / rng;
+  if (lh && rd > 0.382 && rd < 0.618 && rng > 0) return 1; if (!lh && ru > 0.382 && ru < 0.618 && rng > 0) return -1; return 0; }); });
+fam('S/R rədd', 'PriceAction', [2,3,4,5,6], k => C => { const P = PIV(C, k), a = ATR(C), N = C.N, ub = new Uint8Array(N), lb = new Uint8Array(N);
+  for (let i = 0; i < N; i++) { const rg = C.h[i] - C.l[i]; if (!rg) continue; if (C.h[i] >= P.sh[i] - 0.3 * a[i] && C.c[i] < P.sh[i] && (C.h[i] - Math.max(C.o[i], C.c[i])) > 0.5 * rg && C.c[i] < C.o[i]) ub[i] = 1;
+    if (C.l[i] <= P.sl[i] + 0.3 * a[i] && C.c[i] > P.sl[i] && (Math.min(C.o[i], C.c[i]) - C.l[i]) > 0.5 * rg && C.c[i] > C.o[i]) lb[i] = 1; } const u = act(ub, 2), d = act(lb, 2); return V(C, i => d[i] - u[i]); });
+fam('Wyckoff Spring/Upthrust', 'PriceAction', [15,20,30,40,50,75], n => C => { const hh = HH(C, n), ll = LL(C, n), N = C.N, sp = new Uint8Array(N), up = new Uint8Array(N);
+  for (let i = 1; i < N; i++) { if (C.l[i] < ll[i - 1] && C.c[i] > ll[i - 1] && C.c[i] > C.o[i]) sp[i] = 1; if (C.h[i] > hh[i - 1] && C.c[i] < hh[i - 1] && C.c[i] < C.o[i]) up[i] = 1; } const a = act(sp, 3), d = act(up, 3); return V(C, i => a[i] - d[i]); });
+fam('Trend Pullback', 'PriceAction', [].concat(...[7,14,21].map(r => [[50,200],[20,50]].map(e => [r, e[0], e[1]]))), p => C => { const r = RSI(C, p[0]), a = E(C, p[1]), b = E(C, p[2]), e20 = E(C, 20);
+  return V(C, i => { if (i < 5) return 0; let mn = 100, mx = 0; for (let j = i - 4; j <= i; j++) { mn = Math.min(mn, r[j]); mx = Math.max(mx, r[j]); }
+    const lg = a[i] > b[i] && mn < 45 && r[i] > r[i - 1] && C.c[i] > e20[i] && r[i] < 65, st = a[i] < b[i] && mx > 55 && r[i] < r[i - 1] && C.c[i] < e20[i] && r[i] > 35; return (lg ? 1 : 0) - (st ? 1 : 0); }); });
+fam('Breakout + Retest', 'PriceAction', [10,15,20,30,40,50], n => C => { const hh = HH(C, n), ll = LL(C, n), a = ATR(C), N = C.N; const out = mk(N, 0);
+  let lu = NaN, iu = -1e9, ld = NaN, id = -1e9, pu = false, pd = false;
+  for (let i = 1; i < N; i++) { const bu = C.c[i] > hh[i - 1], bd = C.c[i] < ll[i - 1]; if (bu && !pu) { lu = hh[i - 1]; iu = i; } if (bd && !pd) { ld = ll[i - 1]; id = i; } pu = bu; pd = bd;
+    const au = i - iu, ad = i - id; const up = au >= 2 && au <= 12 && C.l[i] <= lu + 0.3 * a[i] && C.c[i] > lu, dn = ad >= 2 && ad <= 12 && C.h[i] >= ld - 0.3 * a[i] && C.c[i] < ld; out[i] = (up ? 1 : 0) - (dn ? 1 : 0); } return out; });
+fam('Volume Profile POC', 'PriceAction', [50,100,150,200], w => C => { const p = POC(C, w); return V(C, i => S(C.c[i] - p[i]) * 0.7); });
+fam('Double Top/Bottom', 'PriceAction', [2,3,4,5], k => C => { const P = PIV(C, k), a = ATR(C); return V(C, i => { const c = C.c[i];
+  const db = P.slp[i] > P.shp[i] && Math.abs(P.sl[i] - P.sl2[i]) < 0.5 * a[i] && c > P.sl[i] + 0.5 * a[i] && c < P.sl[i] + 3 * a[i];
+  const dt = P.shp[i] > P.slp[i] && Math.abs(P.sh[i] - P.sh2[i]) < 0.5 * a[i] && c < P.sh[i] - 0.5 * a[i] && c > P.sh[i] - 3 * a[i]; return (db ? 1 : 0) - (dt ? 1 : 0); }); });
+add('Gündəlik Pivot', 'PriceAction', C => { const X = PX(C); return V(C, i => { const p = (X.pdh[i] + X.pdl[i] + X.pdc[i]) / 3, r1 = 2 * p - X.pdl[i], s1 = 2 * p - X.pdh[i]; return S(C.c[i] - p) * 0.5 + (C.c[i] > r1 ? 0.5 : 0) - (C.c[i] < s1 ? 0.5 : 0); }); });
+add('DOL (əvvəlki gün H/L)', 'PriceAction', C => { const X = PX(C), N = C.N, b = new Uint8Array(N), s = new Uint8Array(N);
+  for (let i = 0; i < N; i++) { if (C.l[i] < X.pdl[i] && C.c[i] > X.pdl[i]) b[i] = 1; if (C.h[i] > X.pdh[i] && C.c[i] < X.pdh[i]) s[i] = 1; } const a = act(b, 3), d = act(s, 3);
+  return V(C, i => { const v = a[i] - d[i]; return v !== 0 ? v : 0.4 * ((C.c[i] > X.pdh[i] ? 1 : 0) - (C.c[i] < X.pdl[i] ? 1 : 0)); }); });
+add('Seans açılış meyli', 'PriceAction', C => { const x = PX(C).sop; return V(C, i => S(C.c[i] - x[i]) * 0.6); });
+
+// ------------------------------------------------------------ doldurma: dəqiq 1000
+const TARGET = 1000;
+if (R.length < TARGET) { const need = TARGET - R.length; const ns = []; for (let n = 3; ns.length < need; n++) ns.push(n);
+  fam('EMA məsafəsi/ATR', 'Trend', ns, n => C => { const e = E(C, 5 + n * 2), a = ATR(C); return V(C, i => clip((C.c[i] - e[i]) / a[i] / 2)); }); }
+if (R.length > TARGET) R.length = TARGET;
+
+// ------------------------------------------------------------ skor
+const GROUPS = { Trend: [0.28, 1.3], Momentum: [0.18, 1.3], Bands: [0.10, 1.5], Volume: [0.08, 1.5], PriceAction: [0.36, 2.5] };
+const GROUP_AZ = { Trend: 'Trend', Momentum: 'Momentum', Bands: 'Volatillik/Zona', Volume: 'Həcm', PriceAction: 'Qiymət davranışı / SMC' };
+function sessMult(h) { return (h >= 7 && h < 10) || (h >= 12 && h < 16) ? 1 : (h >= 22 || h < 6) ? 0.7 : 0.9; }
+function sessionName(h) { return h >= 7 && h < 10 ? 'London killzone' : h >= 12 && h < 16 ? 'New York killzone' : (h >= 22 || h < 6) ? 'Asiya seansı (zəif)' : 'Ara vaxt'; }
+function strength(s) { const a = Math.abs(s); return a >= 50 ? 'Güclü' : a >= 30 ? 'Orta' : a >= 15 ? 'Zəif' : 'Çox zəif'; }
+
+function compute(b) {
+  const C = new Ctx(b), N = C.N, gs = {}, cnt = {}, last = [], fails = [];
+  for (const g in GROUPS) { gs[g] = new Float64Array(N); cnt[g] = 0; }
+  for (const ind of R) { let v; try { v = ind.f(C); } catch (e) { fails.push(ind.name + ': ' + e.message); v = new Float64Array(N); }
+    const g = gs[ind.group]; cnt[ind.group]++; for (let i = 0; i < N; i++) { let x = v[i]; if (x !== x) x = 0; else if (x > 1) x = 1; else if (x < -1) x = -1; g[i] += x; } last.push([ind.name, ind.group, (v[N - 1] === v[N - 1] ? clip(v[N - 1]) : 0)]); }
+  const score = new Float64Array(N);
+  for (let i = 0; i < N; i++) { let t = 0; for (const g in GROUPS) t += GROUPS[g][0] * clip((gs[g][i] / cnt[g]) * GROUPS[g][1]); score[i] = clip(t * 100 * sessMult(C.hour[i]), -100, 100); }
+  return { C, score, last, fails };
+}
+
+function analyze(b, s) {
+  const r = compute(b), C = r.C, N = C.N, sc = r.score[N - 1], a = ATR(C), med = (() => { const w = Array.from(a.slice(N - 100)).sort((x, y) => x - y); return (w[49] + w[50]) / 2; })();
+  const ratio = med > 0 ? a[N - 1] / med : 1, wb = s.waitBand;
+  let sig, why = '';
+  if (ratio > 2.5) { sig = 'WAIT'; why = 'Ekstremal volatillik (ATR normanın ' + ratio.toFixed(1) + ' qatı) — şok/xəbər ehtimalı, risk çox yüksəkdir'; }
+  else if (Math.abs(sc) < wb) { sig = 'WAIT'; why = R.length + ' indikator demək olar bərabər bölünüb — istiqamət qeyri-müəyyəndir'; }
+  else sig = sc > 0 ? 'LONG' : 'SHORT';
+  const price = C.c[N - 1], risk = s.slMult * a[N - 1]; let sl = null, tp = null;
+  if (sig === 'LONG') { sl = price - risk; tp = price + risk * s.rr; } if (sig === 'SHORT') { sl = price + risk; tp = price - risk * s.rr; }
+  let bull = 0, bear = 0; const bg = {}; for (const g in GROUPS) bg[g] = [0, 0, 0];
+  for (const [n, g, v] of r.last) { if (v > 0.15) { bull++; bg[g][0]++; } else if (v < -0.15) { bear++; bg[g][1]++; } else bg[g][2]++; }
+  const sgn = sc >= 0 ? 1 : -1, fam = {}; for (const x of r.last) if (x[2] * sgn > 0) { const f = x[0].replace(/\(.*$/, ''); fam[f] = (fam[f] || 0) + Math.abs(x[2]) * GROUPS[x[1]][0]; }
+  const contrib = Object.keys(fam).map(k => [fam[k], k]).sort((x, y) => y[0] - x[0]);
+  return { signal: sig, score: Math.round(sc * 10) / 10, strength: strength(sc), waitReason: why, price, sl, tp, atr: a[N - 1], slDist: risk, tpDist: risk * s.rr,
+    session: sessionName(C.hour[N - 1]), barTime: C.t[N - 1], bull, bear, neutral: R.length - bull - bear, total: R.length, byGroup: bg, votes: r.last, reasons: contrib.slice(0, 6).map(x => x[1]), fails: r.fails };
+}
+
+function backtest(b, s, thresholds, horizon) {
+  horizon = horizon || 6; const r = compute(b), C = r.C, N = C.N, sc = r.score, a = ATR(C), c = C.c, h = C.h, l = C.l, out = [];
+  const med = new Float64Array(N).fill(NaN); for (let i = 100; i < N; i++) { const w = Array.from(a.slice(i - 99, i + 1)).sort((x, y) => x - y); med[i] = (w[49] + w[50]) / 2; }
+  for (const thr of thresholds) { const te = Math.max(thr, s.waitBand); let tot = 0, ok = 0, tpn = 0, sln = 0, to = 0, rs = 0;
+    for (let i = 250; i < N - horizon - 1; i++) { if (Math.abs(sc[i]) < te || a[i] > 2.5 * med[i]) continue; const d = sc[i] > 0 ? 1 : -1; tot++; if ((c[i + 1] - c[i]) * d > 0) ok++;
+      const risk = s.slMult * a[i], sl = c[i] - d * risk, tp = c[i] + d * risk * s.rr; let res = 0;
+      for (let j = i + 1; j <= i + horizon; j++) { const hs = d === 1 ? l[j] <= sl : h[j] >= sl, ht = d === 1 ? h[j] >= tp : l[j] <= tp; if (hs) { res = -1; break; } if (ht) { res = s.rr; break; } }
+      if (res < 0) sln++; else if (res > 0) tpn++; else { to++; res = (c[i + horizon] - c[i]) * d / risk; } rs += res; }
+    out.push({ thr: te, signals: tot, acc: tot ? Math.round(1000 * ok / tot) / 10 : null, tp: tpn, sl: sln, to, expR: tot ? Math.round(1000 * rs / tot) / 1000 : null }); }
+  return out;
+}
+
+function resolve(e, b, horizon) { horizon = horizon || 6; const idx = []; for (let i = 0; i < b.t.length; i++) if (b.t[i] > e.barTime) idx.push(i); if (!idx.length) return e;
+  const d = e.signal === 'LONG' ? 1 : -1, f = idx.slice(0, horizon); e.nextOk = (b.c[f[0]] - e.price) * d > 0; if (e.status === 'TP' || e.status === 'SL' || e.status === 'Vaxt bitdi') return e;
+  for (const i of f) { const hs = d === 1 ? b.l[i] <= e.sl : b.h[i] >= e.sl, ht = d === 1 ? b.h[i] >= e.tp : b.l[i] <= e.tp; if (hs) { e.status = 'SL'; return e; } if (ht) { e.status = 'TP'; return e; } }
+  e.status = f.length >= horizon ? 'Vaxt bitdi' : 'Açıq'; return e; }
+
+root.SP = { analyze, backtest, resolve, compute, count: () => R.length, groups: GROUP_AZ, names: () => R.map(x => x.name + '|' + x.group) };
+if (typeof module !== 'undefined') module.exports = root.SP;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script><script>
+(function () {
+'use strict';
+const $ = id => document.getElementById(id);
+const PAIRS = [['PAXGUSDT', 'XAUUSD (qızıl)'], ['BTCUSDT', 'BTCUSD'], ['ETHUSDT', 'ETHUSD'], ['SOLUSDT', 'SOLUSD'], ['BNBUSDT', 'BNBUSD'], ['XRPUSDT', 'XRPUSD'], ['LINKUSDT', 'LINKUSD'], ['ADAUSDT', 'ADAUSD']];
+const LABEL = id => (PAIRS.find(p => p[0] === id) || [id, id])[1];
+const DEF = { pairs: ['PAXGUSDT', 'BTCUSDT'], waitBand: 5, slMult: 1.5, rr: 3, sound: true, vibrate: true, notify: false, awake: false };
+let st = { ...DEF, ...JSON.parse(localStorage.getItem('sp_settings') || '{}') };
+let hist = JSON.parse(localStorage.getItem('sp_hist') || '[]');
+let res = {}, busy = false, enabled = true, lastKey = null, selPair = st.pairs[0], src = '', installEv = null, wake = null, errs = {};
+
+// ----------------------------------------------------------------- data
+const TO = 12000;
+async function jget(url) { const c = new AbortController(), t = setTimeout(() => c.abort(), TO); try { const r = await fetch(url, { signal: c.signal }); if (!r.ok) throw new Error('HTTP ' + r.status); return await r.json(); } finally { clearTimeout(t); } }
+const SOURCES = [
+  { n: 'Binance', page: async (s, end) => (await jget('https://api.binance.com/api/v3/klines?symbol=' + s + '&interval=1h&limit=1000' + (end ? '&endTime=' + end : ''))).map(k => [+k[0], +k[1], +k[2], +k[3], +k[4], +k[5]]) },
+  { n: 'Binance (ehtiyat)', page: async (s, end) => (await jget('https://data-api.binance.vision/api/v3/klines?symbol=' + s + '&interval=1h&limit=1000' + (end ? '&endTime=' + end : ''))).map(k => [+k[0], +k[1], +k[2], +k[3], +k[4], +k[5]]) },
+  { n: 'Bybit', page: async (s, end) => (await jget('https://api.bybit.com/v5/market/kline?category=spot&symbol=' + s + '&interval=60&limit=1000' + (end ? '&end=' + end : ''))).result.list.map(k => [+k[0], +k[1], +k[2], +k[3], +k[4], +k[5]]) },
+];
+async function getBars(sym) {
+  let lastErr = null;
+  for (const S of SOURCES) {
+    try {
+      let rows = await S.page(sym); if (!rows.length) throw new Error('boş cavab');
+      rows.sort((a, b) => a[0] - b[0]);
+      try { const more = await S.page(sym, rows[0][0] - 1); rows = more.concat(rows); } catch (e) { /* bir səhifə kifayətdir */ }
+      rows.sort((a, b) => a[0] - b[0]); const seen = new Set(); rows = rows.filter(r => !seen.has(r[0]) && seen.add(r[0]));
+      const now = Date.now(); rows = rows.filter(r => r[0] + 3600000 <= now);              // bitməmiş şamı at
+      if (rows.length < 400) throw new Error('data azdır');
+      const n = rows.length, b = { t: new Float64Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n), c: new Float64Array(n), v: new Float64Array(n) };
+      rows.forEach((r, i) => { b.t[i] = r[0]; b.o[i] = r[1]; b.h[i] = r[2]; b.l[i] = r[3]; b.c[i] = r[4]; b.v[i] = r[5]; });
+      return { b, src: S.n };
+    } catch (e) { lastErr = e; }
+  }
+  throw new Error('Data alınmadı (' + (lastErr ? lastErr.message : '?') + '). İnternet var?');
+}
+
+// ----------------------------------------------------------------- util
+const fmtP = x => x == null ? '—' : x >= 10000 ? x.toFixed(1) : x >= 1 ? x.toFixed(2) : x.toFixed(4);
+const pad = n => String(n).padStart(2, '0');
+const save = () => { localStorage.setItem('sp_settings', JSON.stringify(st)); localStorage.setItem('sp_hist', JSON.stringify(hist.slice(-300))); };
+const COL = { LONG: '#19c37d', SHORT: '#ef4444', WAIT: '#6b7488' };
+const TXT = { LONG: '▲ LONG (ALIŞ)', SHORT: '▼ SHORT (SATIŞ)', WAIT: '● GÖZLƏ' };
+function beep() { try { const a = new (window.AudioContext || window.webkitAudioContext)(); [880, 1320].forEach((f, i) => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = f; o.connect(g); g.connect(a.destination); g.gain.setValueAtTime(0.2, a.currentTime + i * 0.25); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + i * 0.25 + 0.22); o.start(a.currentTime + i * 0.25); o.stop(a.currentTime + i * 0.25 + 0.25); }); } catch (e) { } }
+function alertNew(list) {
+  if (st.sound) beep(); if (st.vibrate && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if (st.notify && 'Notification' in window && Notification.permission === 'granted') { try { new Notification('SignalPro', { body: list.map(r => LABEL(r.pair) + ': ' + r.signal + ' (' + (r.score > 0 ? '+' : '') + r.score + ')').join('\n') }); } catch (e) { } } }
+
+// ----------------------------------------------------------------- analiz
+async function refresh() {
+  if (busy) return; busy = true; $('status').textContent = 'Analiz edilir...'; renderCards(true); const fresh = [];
+  for (const p of st.pairs) {
+    try {
+      const { b, src: sname } = await getBars(p); src = sname; await new Promise(r => setTimeout(r, 40));
+      const r = SP.analyze(b, st); r.pair = p; r.updated = Date.now(); errs[p] = null;
+      const prev = res[p]; res[p] = r;
+      let isNew = false;
+      for (const e of hist) if (e.pair === p && (!e.status || e.status === 'Açıq')) SP.resolve(e, b);
+      if (r.signal !== 'WAIT' && !hist.some(e => e.pair === p && e.barTime === r.barTime)) { hist.push({ pair: p, barTime: r.barTime, signal: r.signal, price: r.price, sl: r.sl, tp: r.tp, score: r.score, status: 'Açıq' }); isNew = true; }
+      if (isNew && (!prev || prev.barTime !== r.barTime)) fresh.push(r);
+    } catch (e) { errs[p] = e.message; }
+    renderCards(); if (selPair === p) renderInd();
+  }
+  save(); busy = false; renderCards(); renderHist(); setStatus(); if (fresh.length && lastKey !== null) alertNew(fresh);
+}
+function setStatus() { const t = new Date(); $('status').textContent = (src ? 'Mənbə: ' + src + ' • ' : '') + 'yeniləndi ' + pad(t.getHours()) + ':' + pad(t.getMinutes()) + ':' + pad(t.getSeconds()); }
+
+// ----------------------------------------------------------------- render
+function renderCards(loading) {
+  $('cards').innerHTML = st.pairs.map(p => {
+    const r = res[p], e = errs[p]; let h = '<div class="card" data-p="' + p + '"><div class="nm">' + LABEL(p) + ' <span class="mt">' + p + '</span></div>';
+    if (e) return h + '<div class="err">' + e + '</div></div>';
+    if (!r) return h + '<div class="mt">' + (loading ? 'Hesablanır...' : 'Gözləyin...') + '</div></div>';
+    const c = COL[r.signal], w = Math.abs(r.score) / 2, l = r.score >= 0 ? 50 : 50 - w, pc = x => Math.round(100 * x / r.total), t = new Date(r.barTime + 3600000);
+    return h.replace('class="card"', 'class="card" style="border-color:' + (r.signal === 'WAIT' ? 'transparent' : c) + '"') + '<div class="sg" style="color:' + c + '">' + TXT[r.signal] + '</div>' +
+      '<div class="mt">Skor ' + (r.score > 0 ? '+' : '') + r.score + ' • ' + r.strength + ' • ' + pad(t.getUTCHours()) + ':00 UTC-dən başlayan 1H şam üçün</div>' +
+      '<div class="bar"><b></b><i style="left:' + l + '%;width:' + w + '%;background:' + c + '"></i></div><table>' +
+      '<tr><td>Giriş</td><td>' + fmtP(r.price) + '</td></tr>' +
+      '<tr><td>Stop Loss</td><td style="color:#ef4444">' + fmtP(r.sl) + (r.sl ? ' <small>(' + fmtP(r.slDist) + ' məsafə)</small>' : '') + '</td></tr>' +
+      '<tr><td>Take Profit</td><td style="color:#19c37d">' + fmtP(r.tp) + (r.tp ? ' <small>(' + fmtP(r.tpDist) + ' məsafə)</small>' : '') + '</td></tr>' +
+      '<tr><td>' + r.total + ' indikator</td><td><b style="color:#19c37d">Long ' + r.bull + '</b> • <b style="color:#ef4444">Short ' + r.bear + '</b> • Neytral ' + r.neutral + '</td></tr>' +
+      '<tr><td>100-dən</td><td>Long ' + pc(r.bull) + ' • Short ' + pc(r.bear) + ' • Neytral ' + (100 - pc(r.bull) - pc(r.bear)) + '</td></tr>' +
+      '<tr><td>Seans</td><td>' + r.session + '</td></tr></table>' +
+      '<div class="mt" style="margin-top:8px">' + (r.signal === 'WAIT' ? '⚠ <b>KRİTİK ANDIR</b> — ' + r.waitReason : 'Səbəblər: ' + r.reasons.join(', ')) + '</div></div>';
+  }).join('');
+  document.querySelectorAll('.card').forEach(c => c.onclick = () => { selPair = c.dataset.p; renderInd(); });
+}
+function renderInd() {
+  const r = res[selPair]; const pb = st.pairs.map(p => '<button class="chip' + (p === selPair ? ' on' : '') + '" data-p="' + p + '">' + LABEL(p) + '</button>').join('');
+  if (!r) { $('ind').innerHTML = '<div class="chips">' + pb + '</div><div class="mt">Hələ hesablanmayıb.</div>'; bindChips(); return; }
+  const g = $('grp') ? $('grp').value : 'ALL';
+  let rows = r.votes.filter(v => g === 'ALL' || v[1] === g).sort((a, b) => Math.abs(b[2]) - Math.abs(a[2])); const total = rows.length; if (g === 'ALL') rows = rows.slice(0, 150);
+  $('ind').innerHTML = '<div class="chips">' + pb + '</div><table class="gt"><tr><th>Qrup</th><th>Alış</th><th>Satış</th><th>Neytral</th></tr>' +
+    Object.keys(r.byGroup).map(k => '<tr><td>' + SP.groups[k] + '</td><td style="color:#19c37d">' + r.byGroup[k][0] + '</td><td style="color:#ef4444">' + r.byGroup[k][1] + '</td><td>' + r.byGroup[k][2] + '</td></tr>').join('') + '</table>' +
+    '<select id="grp"><option value="ALL">Ən güclü 150 səs</option>' + Object.keys(SP.groups).map(k => '<option value="' + k + '"' + (k === g ? ' selected' : '') + '>' + SP.groups[k] + ' (hamısı)</option>').join('') + '</select>' +
+    '<div class="mt">' + total + ' indikatordan ' + rows.length + ' göstərilir. Yaşıl = alış, qırmızı = satış.</div>' +
+    rows.map(v => { const x = v[2], c = x > 0.15 ? '#19c37d' : x < -0.15 ? '#ef4444' : '#6b7488'; return '<div class="ir"><span>' + v[0] + '</span><span style="color:' + c + '">' + (x > 0.15 ? '▲' : x < -0.15 ? '▼' : '•') + ' ' + x.toFixed(2) + '</span></div>'; }).join('');
+  bindChips(); $('grp').onchange = renderInd;
+}
+function bindChips() { document.querySelectorAll('.chip').forEach(c => c.onclick = () => { selPair = c.dataset.p; renderInd(); }); }
+function renderHist() {
+  const n = hist.filter(e => e.nextOk !== undefined), ok = n.filter(e => e.nextOk).length, tp = hist.filter(e => e.status === 'TP').length, sl = hist.filter(e => e.status === 'SL').length;
+  $('hist').innerHTML = '<div class="mt"><b>Növbəti şam istiqaməti:</b> ' + ok + '/' + n.length + (n.length ? ' (' + Math.round(100 * ok / n.length) + '%)' : '') + ' düz &nbsp; <b>TP:</b> ' + tp + ' &nbsp; <b>SL:</b> ' + sl + '</div>' +
+    (hist.length ? hist.slice().reverse().slice(0, 100).map(e => { const t = new Date(e.barTime + 3600000), c = e.status === 'TP' ? '#19c37d' : e.status === 'SL' ? '#ef4444' : '#8b95ab';
+      return '<div class="hr"><div><b style="color:' + COL[e.signal] + '">' + e.signal + '</b> ' + LABEL(e.pair) + '<br><small>' + pad(t.getUTCDate()) + '.' + pad(t.getUTCMonth() + 1) + ' ' + pad(t.getUTCHours()) + ':00 UTC • giriş ' + fmtP(e.price) + '</small></div><div style="color:' + c + ';font-weight:700">' + (e.status || 'Açıq') + '</div></div>'; }).join('') : '<div class="mt">Hələ siqnal tarixçəsi yoxdur.</div>');
+}
+
+// ----------------------------------------------------------------- backtest
+function bt(msg) { const o = $('btout'); o.textContent += msg; o.scrollTop = o.scrollHeight; }
+async function btSelected() {
+  $('btout').textContent = ''; for (const p of st.pairs) { try { bt('\n=== ' + LABEL(p) + ' ===\nYüklənir...\n'); const { b } = await getBars(p); await new Promise(r => setTimeout(r, 40));
+    const rs = SP.backtest(b, st, [0, 15, 30, 45]); bt(b.t.length + ' saatlıq şam.\nMin.skor | siqnal | növbəti şam düz | TP | SL | vaxt bitdi | expR\n'); rs.forEach(r => bt('  ' + r.thr + '  |  ' + r.signals + '  |  ' + r.acc + '%  |  ' + r.tp + '  |  ' + r.sl + '  |  ' + r.to + '  |  ' + r.expR + '\n')); } catch (e) { bt(p + ': xəta - ' + e.message + '\n'); } }
+  bt('\nBitdi. expR > 0 olmalıdır. Spred/komissiya daxil deyil.\n'); }
+async function btRank() {
+  $('btout').textContent = 'Namizədlər yoxlanır (1-2 dəqiqə)...\n'; const rows = [];
+  for (const [p, l] of PAIRS) { try { const { b } = await getBars(p); await new Promise(r => setTimeout(r, 40)); const r = SP.backtest(b, st, [st.waitBand])[0]; bt('  ' + l + ': expR ' + r.expR + ' (' + r.signals + ' siqnal)\n'); if (r.signals >= 30) rows.push([r.expR, l, r]); } catch (e) { bt('  ' + l + ': keçildi (' + e.message + ')\n'); } }
+  rows.sort((a, b) => b[0] - a[0]); bt('\nSıralama (ən yaxşı → ən pis):\n' + rows.map((x, i) => '  ' + (i + 1) + '. ' + x[1] + '  expR=' + x[0] + '  düzlük=' + x[2].acc + '%\n').join('') + '\nKeçmiş nəticədir, gələcəyə zəmanət deyil.\n'); }
+
+// ----------------------------------------------------------------- ayarlar
+function renderSet() {
+  const opt = sel => PAIRS.map(p => '<option value="' + p[0] + '"' + (p[0] === sel ? ' selected' : '') + '>' + p[1] + '</option>').join('');
+  $('set').innerHTML = '<label>1-ci cütlük<select id="s1">' + opt(st.pairs[0]) + '</select></label><label>2-ci cütlük<select id="s2">' + opt(st.pairs[1]) + '</select></label>' +
+    '<label>WAIT həddi (0-20, kiçik = çox siqnal)<input id="s3" type="number" step="1" value="' + st.waitBand + '"></label><label>Stop Loss (× ATR)<input id="s4" type="number" step="0.1" value="' + st.slMult + '"></label>' +
+    '<label>Risk/Reward (1:X)<input id="s5" type="number" step="0.5" value="' + st.rr + '"></label>' +
+    '<label class="ck"><input id="c1" type="checkbox"' + (st.sound ? ' checked' : '') + '> Yeni siqnalda səs</label><label class="ck"><input id="c2" type="checkbox"' + (st.vibrate ? ' checked' : '') + '> Titrəmə</label>' +
+    '<label class="ck"><input id="c3" type="checkbox"' + (st.notify ? ' checked' : '') + '> Bildiriş (proqram açıq olanda)</label><label class="ck"><input id="c4" type="checkbox"' + (st.awake ? ' checked' : '') + '> Ekranı yanıq saxla</label>' +
+    '<button id="sv" class="btn g">Yadda saxla və yenilə</button><button id="tb" class="btn">🔔 Səsi yoxla</button><button id="ins" class="btn b" style="display:' + (installEv ? 'block' : 'none') + '">📲 Ana ekrana qoş</button>' +
+    '<div class="mt">Qeyd: XAUUSD siqnalı PAXG/USDT (qızıl tokeni) datasından hesablanır; qiymət brokerin qızıl qiymətindən azca fərqlənə bilər, ona görə SL/TP <b>məsafəsini</b> brokerin qiymətinə tətbiq edin.<br>Bu proqram maliyyə məsləhəti deyil və qazanc zəmanəti vermir.</div>';
+  $('sv').onclick = async () => { const a = $('s1').value, b = $('s2').value; if (a === b) { alert('İki fərqli cütlük seçin'); return; }
+    st = { ...st, pairs: [a, b], waitBand: +$('s3').value, slMult: +$('s4').value, rr: +$('s5').value, sound: $('c1').checked, vibrate: $('c2').checked, notify: $('c3').checked, awake: $('c4').checked };
+    if (st.notify && 'Notification' in window && Notification.permission === 'default') await Notification.requestPermission(); selPair = st.pairs[0]; res = {}; errs = {}; save(); keepAwake(); go('sig'); refresh(); };
+  $('tb').onclick = () => { beep(); if (navigator.vibrate) navigator.vibrate(200); }; if ($('ins')) $('ins').onclick = () => installEv && installEv.prompt();
+}
+async function keepAwake() { try { if (st.awake && 'wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => wake = null); } else if (!st.awake && wake) { wake.release(); wake = null; } } catch (e) { } }
+
+// ----------------------------------------------------------------- navigasiya & taymer
+function go(t) { document.querySelectorAll('.tab').forEach(x => x.style.display = x.id === 't_' + t ? 'block' : 'none'); document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  if (t === 'ind') renderInd(); if (t === 'his') renderHist(); if (t === 'set') renderSet(); window.scrollTo(0, 0); }
+function tick() { const n = new Date(), nx = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), n.getUTCHours() + 1)), left = Math.floor((nx - n) / 1000);
+  $('clock').textContent = pad(n.getUTCHours()) + ':' + pad(n.getUTCMinutes()) + ':' + pad(n.getUTCSeconds()) + ' UTC • növbəti şam ' + pad(Math.floor(left / 60)) + ':' + pad(left % 60);
+  const key = n.getUTCFullYear() + '' + n.getUTCMonth() + n.getUTCDate() + n.getUTCHours();
+  if (enabled && key !== lastKey && (n.getUTCMinutes() > 0 || n.getUTCSeconds() >= 8) && !busy) { const first = lastKey === null; lastKey = key; refresh(); if (first) lastKey = key; } }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { keepAwake(); const r = res[st.pairs[0]]; if (enabled && (!r || Date.now() - r.updated > 120000)) refresh(); } });
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; if ($('ins')) $('ins').style.display = 'block'; });
+
+window.addEventListener('load', () => {
+  $('onoff').onclick = () => { enabled = !enabled; $('onoff').textContent = enabled ? '● AÇIQ' : '○ BAĞLI'; $('onoff').className = 'tg ' + (enabled ? 'on' : ''); };
+  $('now').onclick = () => refresh(); $('b1').onclick = btSelected; $('b2').onclick = btRank;
+  document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.t));
+  $('cnt').textContent = SP.count(); renderCards(true); renderHist(); renderSet(); go('sig'); keepAwake(); setInterval(tick, 1000); tick();
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) navigator.serviceWorker.register('sw.js').catch(() => { });
+});
+})();
+
+</script></body></html>
